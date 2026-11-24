@@ -56,17 +56,40 @@ def self_test():
     return True
 
 
+def validate_written(path):
+    """Re-validate the file on disk: non-empty, 1-200 chars, single line."""
+    with open(path, "r", encoding="utf-8", newline="") as handle:
+        text = handle.read()
+    if not text:
+        print("entry.txt is empty", file=sys.stderr)
+        return False
+    if not 1 <= len(text) <= 200:
+        print(f"entry.txt is {len(text)} characters, outside the 1-200 window",
+              file=sys.stderr)
+        return False
+    if "\n" in text or "\r" in text:
+        print("entry.txt must be a single line", file=sys.stderr)
+        return False
+    return True
+
+
 def main(argv):
     if "--check" in argv:
         return 0 if check_entry() else 1
     if "--self-test" in argv:
         return 0 if self_test() else 1
+    # Validate the line BEFORE writing: a bad line must fail the run
+    # with a clear message instead of producing a bad entry.txt.
+    if not check_entry():
+        return 1
     directory = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     path = write_entry(directory)
     with open(path, "r", encoding="utf-8", newline="") as handle:
         if handle.read() != ENTRY:
             print("verification failed: entry.txt differs", file=sys.stderr)
             return 1
+    if not validate_written(path):
+        return 1
     print(f"wrote {path} ({len(ENTRY)} characters)")
     return 0
 
